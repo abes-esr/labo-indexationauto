@@ -8,6 +8,7 @@ import time
 import gensim
 import nltk
 import numpy as np
+import spacy
 import tensorflow as tf
 import tensorflow_hub as hub
 
@@ -15,6 +16,7 @@ from gensim.models.word2vec import Word2Vec
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer, PorterStemmer
+from nltk.stem.snowball import FrenchStemmer
 from nltk.tokenize import word_tokenize
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
@@ -37,7 +39,7 @@ print("is tf built with cuda:", tf.test.is_built_with_cuda())
 nltk.download("words")
 nltk.download("stopwords")
 nltk.download("omw-1.4")
-
+nlp = spacy.load("fr_core_news_md")
 
 DPI = 300
 RAND_STATE = 42
@@ -50,6 +52,10 @@ print("USE model %s loaded")
 
 #                           TEXT PREPROCESS                         #
 # --------------------------------------------------------------------
+def flatten(l):
+    return [item for sublist in l for item in sublist]
+
+
 # Remove stopwords
 def stop_word_filter_fct(list_words, add_words):
     """
@@ -75,20 +81,28 @@ def lemma_fct(list_words):
 
     Arguments:
         - list_words (list): list of words
+        - lang (str): language used in the corpus (default: english)
 
     Returns :
         - Lemmatized list of words
     """
-    lemma = WordNetLemmatizer()
-    lem_w = [
-        lemma.lemmatize(
-            lemma.lemmatize(
-                lemma.lemmatize(lemma.lemmatize(w, pos="a"), pos="v"), pos="n"
-            ),
-            pos="r",
-        )
-        for w in list_words
-    ]
+    # if lang == "english":
+    #     lemma = WordNetLemmatizer()
+    #     lem_w = [
+    #         lemma.lemmatize(
+    #             lemma.lemmatize(
+    #                 lemma.lemmatize(lemma.lemmatize(w, pos="a"), pos="v"), pos="n"
+    #             ),
+    #             pos="r",
+    #         )
+    #         for w in list_words
+    #     ]
+
+    lem_w = []
+    for token in nlp(" ".join(list_words)):
+        lem_w.append(token.lemma_)
+
+    # lem_w = " ".join(map(str, empty_list))
 
     return lem_w
 
@@ -104,16 +118,14 @@ def stem_fct(list_words):
     Returns :
         - Stemmed list of words
     """
-    stemmer = PorterStemmer()
+    stemmer = FrenchStemmer()
     stem_w = [stemmer.stem(w) for w in list_words]
 
     return stem_w
 
 
 # Preprocess text
-def preprocess_text(
-    text, add_words=[], numeric=True, stopw=True, stem=False, lem=True
-):
+def preprocess_text(text, add_words=[], numeric=True, stopw=True, stem=False, lem=True):
     """
     Description: preprocess a text with different preprocessings.
 
@@ -124,6 +136,7 @@ def preprocess_text(
         - stopw (bool): whether to remove classical english stopwords (default: True)
         - stem (bool): whether to stem words or not (default: False)
         - lem (bool): whether to lemmatize words or not (default: True)
+        - lang (str): language used in the corpus (default: eng for english). Can be 'eng' or 'fr'. 
 
     Returns :
         - Preprocessed list of tokens
@@ -139,7 +152,6 @@ def preprocess_text(
     if numeric:
         # remove all numeric characters
         text_no_punct = re.sub(r"[^\D]", " ", text_no_punct)
-
 
     # tokenize
     word_tokens = word_tokenize(text_no_punct)
@@ -157,9 +169,9 @@ def preprocess_text(
         # lemmatization
         word_tokens = lemma_fct(word_tokens)
 
-    if stopw:
-        # remove stopwords
-        word_tokens = stop_word_filter_fct(word_tokens, add_words)
+    # if stopw:
+    # remove stopwords
+    # word_tokens = stop_word_filter_fct(word_tokens, add_words)
 
     # Finalize text
     transf_desc_text = " ".join(word_tokens)
@@ -725,7 +737,7 @@ def gridsearch_preprocess_vector_dim(
     nlp_params_range,
     summary,
     summary_filename,
-    **fit_params
+    **fit_params,
 ):
 
     """
