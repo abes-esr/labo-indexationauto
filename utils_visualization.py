@@ -19,7 +19,7 @@ from sklearn.decomposition import LatentDirichletAllocation, NMF
 from sklearn.manifold import TSNE
 from sklearn.metrics import confusion_matrix, silhouette_score
 from yellowbrick.cluster import SilhouetteVisualizer
-from wordcloud import WordCloud
+
 
 DPI = 300
 RAND_STATE = 42
@@ -27,32 +27,6 @@ RAND_STATE = 42
 
 #                            EXPLORATION                             #
 # --------------------------------------------------------------------
-def plot_wordcloud(token_list, cat=None, figsave=None):
-    """
-    Description: plot wordcloud of most important tokens from a list of tokens
-
-    Arguments:
-        - token_list (list): list of token lists
-        - cat (str): categorie name for plot title
-        - figsave (str) : name of the figure if want to save it
-
-    Returns :
-        - Wordcloud of tokens, based on tokens counts
-    """
-    wc = WordCloud(background_color="white", width=1000, height=500)
-    wordcloud = wc.generate_from_text(" ".join(token_list))
-
-    plt.figure(figsize=(12, 6))
-    plt.suptitle(cat, fontsize=24, fontweight="bold")
-    plt.imshow(wordcloud)
-    plt.axis("off")
-
-    if figsave:
-        plt.savefig(figsave, dpi=DPI, bbox_inches="tight")
-    plt.show()
-    plt.close()
-
-
 def plot_barplot_of_tags(
     tags_list,
     nb_of_tags,
@@ -99,7 +73,6 @@ class TSNE_wrapper(BaseEstimator, TransformerMixin):
     """
 
     def __init__(self, n_components=2, perplexity=30, init="random", random_state=None):
-
         self.n_components = n_components
         self.perplexity = perplexity
         self.init = init
@@ -363,7 +336,6 @@ def catplot_summary(
     col_wrap=2,
     savefig=None,
 ):
-
     """
     Plot values of 'var' accross combinaisons
     of y, hue and col.
@@ -573,7 +545,11 @@ def plot_contingency_table(
     if set_aspect:
         ax1.set_aspect(1)
     sns.heatmap(
-        cont_table, cmap="rocket_r", vmin=0, annot=True, fmt="d",
+        cont_table,
+        cmap="rocket_r",
+        vmin=0,
+        annot=True,
+        fmt="d",
     )
     plt.title(title, fontsize=20)
 
