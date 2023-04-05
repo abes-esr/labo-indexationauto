@@ -1,4 +1,4 @@
-"""Utilitary functions used for text processing in Project 6"""
+"""Utilitary functions used for text processing in ABES project"""
 
 # Import des librairies
 import os
@@ -22,7 +22,32 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
-from transformers import AutoTokenizer
+from spacy.lang.fr.stop_words import STOP_WORDS as fr_stop
+import torch
+import torch.nn as nn
+from transformers import (
+    AutoTokenizer,
+    BertTokenizer,
+    BertModel,
+    AdamW,
+    get_linear_schedule_with_warmup,
+)
+import pytorch_lightning as pl
+from torchmetrics.classification import (  # noqa: E402
+    AUROC,
+    Accuracy,
+    AveragePrecision,
+    ConfusionMatrix,
+    ExactMatch,
+    F1Score,
+    FBetaScore,
+    HammingDistance,
+    JaccardIndex,
+    Precision,
+    PrecisionRecallCurve,
+    Recall,
+)
+
 
 from utils_visualization import *
 from utils_model_optimization import *
@@ -44,10 +69,17 @@ nlp = spacy.load("fr_core_news_md")
 DPI = 300
 RAND_STATE = 42
 
-# module_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
-use_module_url = "resources/USE"
-use_model = hub.load(use_module_url)
+# Import USE
+use_module_url = "https://tfhub.dev/google/universal-sentence-encoder/4"  # "https://tfhub.dev/google/universal-sentence-encoder-large/5"]
+# use_module_url = "resources/USE"
+use_model = hub.load(use_module_url)  # Load the module from selected URL
 print("USE model %s loaded")
+
+# Folders
+data_path = "./data/"
+input_path = "./input/"
+output_path = "./output/"
+fig_path = "./figures/"
 
 
 #                           TEXT PREPROCESS                         #
@@ -69,7 +101,7 @@ def stop_word_filter_fct(list_words, add_words):
     Returns :
         - text without stopwords
     """
-    stop_w = list(set(stopwords.words("french"))) + add_words
+    stop_w = list(set(stopwords.words("french"))) + list(fr_stop) + add_words
     filtered_w = [w for w in list_words if w not in stop_w]
     return filtered_w
 
@@ -136,7 +168,7 @@ def preprocess_text(text, add_words=[], numeric=True, stopw=True, stem=False, le
         - stopw (bool): whether to remove classical english stopwords (default: True)
         - stem (bool): whether to stem words or not (default: False)
         - lem (bool): whether to lemmatize words or not (default: True)
-        - lang (str): language used in the corpus (default: eng for english). Can be 'eng' or 'fr'. 
+        - lang (str): language used in the corpus (default: eng for english). Can be 'eng' or 'fr'.
 
     Returns :
         - Preprocessed list of tokens
@@ -237,7 +269,6 @@ def feature_word2vec_fct(
     n_words=100,
     plot=False,
 ):
-
     """
     Description: compute word2vec embedding, using gensim implementation.
         Parameters are the same than gensim word2vec embedding
@@ -301,7 +332,6 @@ def feature_doc2vec_fct(
     workers=1,
     w2v_epochs=100,
 ):
-
     """
     Description: compute doc2vec embedding, using gensim implementation.
         Parameters are the same than gensim word2vec embedding
@@ -536,7 +566,6 @@ def explore_preprocess_vector_dim(
     summary,
     summary_filename,
 ):
-
     """
     Description: compute end to end matrix terms frequency/embedding methods,
         reduction dimension, clustering and metric computation for all combinations
@@ -739,7 +768,6 @@ def gridsearch_preprocess_vector_dim(
     summary_filename,
     **fit_params,
 ):
-
     """
     Description: compute hyper-parameter optimization on end to end
         matrix terms frequency/embedding methods, reduction dimension,
@@ -784,7 +812,6 @@ def gridsearch_preprocess_vector_dim(
         for vectorization, vectorization_name in zip(
             vectorization_method_list, vectorization_method_name_list
         ):
-
             print("                  ", str(vectorization))
             print(
                 "-------------------------------------------------------------------------------"
