@@ -1,4 +1,4 @@
-"""Utilitary functions used for text processing in Project 6"""
+"""Utilitary functions used for text processing in ABES project"""
 
 # Import des librairies
 import os
@@ -22,6 +22,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
+from spacy.lang.fr.stop_words import STOP_WORDS as fr_stop
 from transformers import AutoTokenizer
 
 from utils_visualization import *
@@ -49,7 +50,23 @@ use_module_url = "resources/USE"
 use_model = hub.load(use_module_url)
 print("USE model %s loaded")
 
+# Folders
+data_path = "./data/"
+input_path = "./input/"
+output_path = "./output/"
+fig_path = "./figures/"
 
+# General functions
+def get_dataset(path):
+  dataset = pd.read_csv(path, converters={'titre': eval, 'resume': eval, 'descr':eval, '':eval})
+  return dataset
+
+# sauvegarder un dataframe en csv
+def save_dataset_to_csv(df, filename):
+  out_path = data_path + filename + '.csv'
+  df.to_csv(out_path, index=False)
+
+ 
 #                           TEXT PREPROCESS                         #
 # --------------------------------------------------------------------
 def flatten(l):
@@ -69,7 +86,7 @@ def stop_word_filter_fct(list_words, add_words):
     Returns :
         - text without stopwords
     """
-    stop_w = list(set(stopwords.words("french"))) + add_words
+    stop_w = list(set(stopwords.words("french"))) + list(fr_stop) + add_words
     filtered_w = [w for w in list_words if w not in stop_w]
     return filtered_w
 
