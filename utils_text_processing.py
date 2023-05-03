@@ -1,4 +1,4 @@
-"""Utilitary functions used for text processing"""
+"""Utilitary functions used for text processing in ABES project"""
 
 # Import des librairies
 import os
@@ -40,7 +40,7 @@ def stop_word_filter_fct(list_words, add_words):
     Returns :
         - text without stopwords
     """
-    stop_w = list(set(stopwords.words("french"))) + add_words
+    stop_w = list(set(stopwords.words("french"))) + list(fr_stop) + add_words
     filtered_w = [w for w in list_words if w not in stop_w]
     return filtered_w
 
@@ -107,7 +107,7 @@ def preprocess_text(text, add_words=[], numeric=True, stopw=True, stem=False, le
         - stopw (bool): whether to remove classical english stopwords (default: True)
         - stem (bool): whether to stem words or not (default: False)
         - lem (bool): whether to lemmatize words or not (default: True)
-        - lang (str): language used in the corpus (default: eng for english). Can be 'eng' or 'fr'. 
+        - lang (str): language used in the corpus (default: eng for english). Can be 'eng' or 'fr'.
 
     Returns :
         - Preprocessed list of tokens
