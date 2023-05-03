@@ -1,19 +1,16 @@
-"""Utilitary functions used for text processing in Project 6"""
+"""Utilitary functions used for text processing"""
 
 # Import des librairies
 import os
 import re
 
 import nltk
-import numpy as np
 import spacy
 
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer, PorterStemmer
 from nltk.stem.snowball import FrenchStemmer
 from nltk.tokenize import word_tokenize
-
-
 
 # download nltk packages
 nltk.download("words")
@@ -23,12 +20,6 @@ nlp = spacy.load("fr_core_news_md")
 
 DPI = 300
 RAND_STATE = 42
-
-# module_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
-use_module_url = "resources/USE"
-use_model = hub.load(use_module_url)
-print("USE model %s loaded")
-
 
 #                           TEXT PREPROCESS                         #
 # --------------------------------------------------------------------
