@@ -13,32 +13,6 @@ RAND_STATE = 42
 
 #                            EXPLORATION                             #
 # --------------------------------------------------------------------
-def plot_wordcloud(token_list, cat=None, figsave=None):
-    """
-    Description: plot wordcloud of most important tokens from a list of tokens
-
-    Arguments:
-        - token_list (list): list of token lists
-        - cat (str): categorie name for plot title
-        - figsave (str) : name of the figure if want to save it
-
-    Returns :
-        - Wordcloud of tokens, based on tokens counts
-    """
-    wc = WordCloud(background_color="white", width=1000, height=500)
-    wordcloud = wc.generate_from_text(" ".join(token_list))
-
-    plt.figure(figsize=(12, 6))
-    plt.suptitle(cat, fontsize=24, fontweight="bold")
-    plt.imshow(wordcloud)
-    plt.axis("off")
-
-    if figsave:
-        plt.savefig(figsave, dpi=DPI, bbox_inches="tight")
-    plt.show()
-    plt.close()
-
-
 def plot_barplot_of_tags(
     tags_list,
     nb_of_tags,

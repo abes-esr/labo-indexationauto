@@ -1,71 +1,85 @@
-""" Utilitary functions for text preprocessing"""
+"""Utilitary functions used for text processing in ABES project"""
 
-# Import librairies
+# Import des librairies
 import os
 import re
+import time
 
-
+import gensim
 import nltk
 import numpy as np
-import pandas as pd
-import unicodedata
 import spacy
-import shutil
-import sys
-import fr_core_news_sm
-import en_core_web_sm
+import tensorflow as tf
+import tensorflow_hub as hub
 
+from gensim.models.word2vec import Word2Vec
+from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from nltk.corpus import stopwords
-from nltk.stem.snowball import SnowballStemmer
+from nltk.stem import WordNetLemmatizer, PorterStemmer
+from nltk.stem.snowball import FrenchStemmer
 from nltk.tokenize import word_tokenize
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler
+from spacy.lang.fr.stop_words import STOP_WORDS as fr_stop
+import torch
+import torch.nn as nn
+from transformers import (
+    AutoTokenizer,
+    BertTokenizer,
+    BertModel,
+    AdamW,
+    get_linear_schedule_with_warmup,
+)
+import pytorch_lightning as pl
+from torchmetrics.classification import (  # noqa: E402
+    AUROC,
+    Accuracy,
+    AveragePrecision,
+    ConfusionMatrix,
+    ExactMatch,
+    F1Score,
+    FBetaScore,
+    HammingDistance,
+    JaccardIndex,
+    Precision,
+    PrecisionRecallCurve,
+    Recall,
+)
+
+
 from utils_visualization import *
 from utils_model_optimization import *
 
-from spacy.lang.fr.stop_words import STOP_WORDS as fr_stop
-from spacy.lang.en.stop_words import STOP_WORDS as en_stop
+os.environ["TF_KERAS"] = "1"
 
+# Check versions
+print("gensim version:", gensim.__version__)
+print("tensorflow version:", tf.__version__)
+print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices("GPU")))
+print("is tf built with cuda:", tf.test.is_built_with_cuda())
 
-# Test processing
-
-
-nltk.download("punkt")
+# download nltk packages
 nltk.download("words")
 nltk.download("stopwords")
 nltk.download("omw-1.4")
+nlp = spacy.load("fr_core_news_md")
 
-# Set paths
-path = "."
-os.chdir(path)
-data_path = path + "/data"
-output_path = path + "/outputs"
-fig_path = path + "/figures"
+DPI = 300
+RAND_STATE = 42
 
+# Import USE
+use_module_url = "https://tfhub.dev/google/universal-sentence-encoder/4"  # "https://tfhub.dev/google/universal-sentence-encoder-large/5"]
+# use_module_url = "resources/USE"
+use_model = hub.load(use_module_url)  # Load the module from selected URL
+print("USE model %s loaded")
 
-# Set Parameters
-RANDOM_STATE = 42
-
-
-# Import dataset
-def get_dataset(filename):
-    dataset = pd.read_csv(
-        os.path.join(data_path, filename),
-        converters={"TITRE": eval, "RESUME": eval, "rameau_list_unstack": eval},
-    )
-    return dataset
-
-
-# Save Dataset to csv
-def save_dataset_to_csv(df, filename):
-    path_destination = os.path.join(data_path, filename)
-    df.to_csv(path_destination, index=False)
-
-
-# Import processed dataset
-def get_dataset_init(filename):
-    dataset_init = pd.read_csv(
-        os.path.join(data_path, filename), converters={"rameau_list_unstack": eval}
-    )
-    return dataset_init
+# Folders
+data_path = "./data/"
+input_path = "./input/"
+output_path = "./output/"
+fig_path = "./figures/"
 
 
 #                           TEXT PREPROCESS                         #
@@ -74,183 +88,8 @@ def flatten(l):
     return [item for sublist in l for item in sublist]
 
 
-class PreprocessData:
-    def __init__(
-        self,
-        df,
-        input_col,
-        output_col,
-        lang="french",
-        add_words=[],
-        ascii=False,
-        numeric=True,
-        stopw=True,
-        stem=False,
-        lem=True,
-    ):
-        self.df = df
-        self.lang = lang
-        self.add_words = add_words
-        self.ascii = ascii
-        self.numeric = numeric
-        self.stopw = stopw
-        self.stem = stem
-        self.lem = lem
-
-        if lang == "french":
-            self.stop_w = set(stopwords.words(lang)).union(fr_stop).union(add_words)
-            ref = "fr_core_news_md"
-        elif lang == "english":
-            self.stop_w = set(stopwords.words(lang)).union(en_stop).union(add_words)
-            ref = "en_core_web_sm"
-        else:
-            ValueError(
-                f"Unknown language, must be 'french' or 'english', you provided {lang}"
-            )
-        self.nlp = spacy.load(ref, disable=["parser", "ner"])
-        self.stemmer = SnowballStemmer(language=lang)
-
-        df_copy = df.copy()
-        df_copy[output_col] = df_copy[input_col].apply(
-            lambda x: self.preprocess_text(x)
-        )
-        self.df = df_copy
-
-    def stop_word_filter_fct(self, tokens):
-        """
-        Description: remove classical french (and optionnally more)
-        stopword from a list of words
-
-        Arguments:
-            - list_words (list): list of words
-            - add_words (list) : list of additionnal words to remove
-
-        Returns :
-            - text without stopwords
-        """
-
-        stop_w = self.stop_w
-        filtered_tokens = [w for w in tokens if w not in stop_w]
-
-        return filtered_tokens
-
-    def funcEnc(self, tokens):
-        new_words = []
-        for word in tokens:
-            new_word = (
-                unicodedata.normalize("NFKD", word)
-                .encode("ASCII", "ignore")
-                .decode("utf-8", "ignore")
-            )
-            new_words.append(new_word)
-        return new_words
-
-    def lemma_fct(self, tokens):
-        """
-        Description: lemmatize a list of words
-
-        Arguments:
-            - list_words (list): list of words
-            - lang (str): language used in the corpus (default: english)
-
-        Returns :
-            - Lemmatized list of words
-        """
-        # if lang == "english":
-        #     lemma = WordNetLemmatizer()
-        #     lem_w = [
-        #         lemma.lemmatize(
-        #             lemma.lemmatize(
-        #                 lemma.lemmatize(lemma.lemmatize(w, pos="a"), pos="v"), pos="n"
-        #             ),
-        #             pos="r",
-        #         )
-        #         for w in list_words
-        #     ]
-
-        nlp = self.nlp
-
-        lem_w = []
-        for token in nlp(" ".join(tokens)):
-            lem_w.append(token.lemma_)
-
-        return lem_w
-
-    def stem_fct(self, tokens):
-        """
-        Description: Stem a list of words
-
-        Arguments:
-            - list_words (list): list of words
-
-        Returns :
-            - Stemmed list of words
-        """
-        stemmer = self.stemmer
-        stem_w = [stemmer.stem(w) for w in tokens]
-
-        return stem_w
-
-    def preprocess_text(self, text):
-        """
-        Description: preprocess a text with different preprocessings.
-
-        Arguments:
-            - text (str): text, with punctuation
-            - add_words (str): words to remove, in addition to classical english stopwords
-            - ascii (bool): whether to transform text into ascii standard (default: False)
-            - numeric (bool): whether to remove numerical or not (default: True)
-            - stopw (bool): whether to remove classical english stopwords (default: True)
-            - stem (bool): whether to stem words or not (default: False)
-            - lem (bool): whether to lemmatize words or not (default: True)
-            - lang (str): language used in the corpus (default: eng for english). Can be 'eng' or 'fr'.
-
-        Returns :
-            - Preprocessed list of tokens
-        """
-
-        # Lowerize all words
-        text_lower = str.lower(text)
-
-        # remove particular characters and punctuation
-        text_lower = re.sub(r"_", " ", text_lower)  # r"_| x |\d+x"
-        text_no_punct = re.sub(r"[^\w\s]", " ", text_lower)
-
-        if self.numeric:
-            # remove all numeric characters
-            text_no_punct = re.sub(r"[^\D]", " ", text_no_punct)
-
-        # tokenize
-        tokens = word_tokenize(text_no_punct, language=self.lang)
-
-        if self.ascii:
-            tokens = self.funcEnc(tokens)
-
-        if self.stopw:
-            # remove stopwords
-            tokens = self.stop_word_filter_fct(tokens)
-
-        # Stemming or lemmatization
-        if self.stem:
-            # stemming
-            tokens = self.stem_fct(tokens)
-
-        if self.lem:
-            # lemmatization
-            tokens = self.lemma_fct(tokens)
-
-        # if stopw:
-        # remove stopwords
-        # word_tokens = stop_word_filter_fct(word_tokens, add_words)
-
-        # Finalize text
-        text = " ".join(tokens)
-        self.tokens = tokens
-        return text
-
-
 # Remove stopwords
-def stop_word_filter_fct2(tokens, lang="french", add_words=None):
+def stop_word_filter_fct(list_words, add_words):
     """
     Description: remove classical french (and optionnally more)
     stopword from a list of words
@@ -262,33 +101,13 @@ def stop_word_filter_fct2(tokens, lang="french", add_words=None):
     Returns :
         - text without stopwords
     """
-    if lang == "french":
-        stop_w = set(stopwords.words(lang)).union(fr_stop).union(add_words)
-    elif lang == "english":
-        stop_w = set(stopwords.words(lang)).union(en_stop).union(add_words)
-    else:
-        ValueError(
-            f"Unknown language, must be 'french' or 'english', you provided {lang}"
-        )
-    filtered_w = [w for w in tokens if w not in stop_w]
+    stop_w = list(set(stopwords.words("french"))) + list(fr_stop) + add_words
+    filtered_w = [w for w in list_words if w not in stop_w]
     return filtered_w
 
 
-# Encodage des données, les accents seront enlevés
-def funcEnc2(tokens):
-    new_words = []
-    for word in tokens:
-        new_word = (
-            unicodedata.normalize("NFKD", word)
-            .encode("ASCII", "ignore")
-            .decode("utf-8", "ignore")
-        )
-        new_words.append(new_word)
-    return new_words
-
-
 # Lemmatizer (base d'un mot)
-def lemma_fct2(list_words, lang="french"):
+def lemma_fct(list_words):
     """
     Description: lemmatize a list of words
 
@@ -312,20 +131,16 @@ def lemma_fct2(list_words, lang="french"):
     #     ]
 
     lem_w = []
-    if lang == "french":
-        ref = "fr_core_news_md"
-    if lang == "english":
-        ref = "en_core_web_sm"
-
-    nlp = spacy.load(ref, disable=["parser", "ner"])
     for token in nlp(" ".join(list_words)):
         lem_w.append(token.lemma_)
+
+    # lem_w = " ".join(map(str, empty_list))
 
     return lem_w
 
 
 # Stemming
-def stem_fct2(list_words, lang="french"):
+def stem_fct(list_words):
     """
     Description: Stem a list of words
 
@@ -335,30 +150,20 @@ def stem_fct2(list_words, lang="french"):
     Returns :
         - Stemmed list of words
     """
-    stemmer = SnowballStemmer(language=lang)
+    stemmer = FrenchStemmer()
     stem_w = [stemmer.stem(w) for w in list_words]
 
     return stem_w
 
 
 # Preprocess text
-def preprocess_text2(
-    text,
-    lang="french",
-    add_words=[],
-    ascii=False,
-    numeric=True,
-    stopw=True,
-    stem=False,
-    lem=True,
-):
+def preprocess_text(text, add_words=[], numeric=True, stopw=True, stem=False, lem=True):
     """
     Description: preprocess a text with different preprocessings.
 
     Arguments:
         - text (str): text, with punctuation
         - add_words (str): words to remove, in addition to classical english stopwords
-        - ascii (bool): whether to transform text into ascii standard (default: False)
         - numeric (bool): whether to remove numerical or not (default: True)
         - stopw (bool): whether to remove classical english stopwords (default: True)
         - stem (bool): whether to stem words or not (default: False)
@@ -383,21 +188,18 @@ def preprocess_text2(
     # tokenize
     word_tokens = word_tokenize(text_no_punct)
 
-    if ascii:
-        word_tokens = funcEnc2(word_tokens)
-
     if stopw:
         # remove stopwords
-        word_tokens = stop_word_filter_fct2(word_tokens, lang, add_words)
+        word_tokens = stop_word_filter_fct(word_tokens, add_words)
 
     # Stemming or lemmatization
     if stem:
         # stemming
-        word_tokens = stem_fct2(word_tokens, lang)
+        word_tokens = stem_fct(word_tokens)
 
     if lem:
         # lemmatization
-        word_tokens = lemma_fct2(word_tokens, lang)
+        word_tokens = lemma_fct(word_tokens)
 
     # if stopw:
     # remove stopwords
@@ -610,6 +412,149 @@ def vectorize(list_of_docs, model):
     return features
 
 
+# Fonction de préparation des sentences
+def bert_inp_fct(sentences, bert_tokenizer, max_length):
+    """
+    Description: prepare data before BERT embedding
+
+    Arguments:
+        - sentences (list): list of lists of tokens
+        - bert_tokenizer: bert tokenizer type (typically 'bert-base-uncased')
+        - max_length (int): maximum length of vectors
+
+    Returns:
+        BERT tokens ready to use
+    """
+
+    input_ids = []
+    token_type_ids = []
+    attention_mask = []
+    bert_inp_tot = []
+
+    for sent in sentences:
+        bert_inp = bert_tokenizer.encode_plus(
+            sent,
+            add_special_tokens=True,
+            max_length=max_length,
+            padding="max_length",
+            return_attention_mask=True,
+            return_token_type_ids=True,
+            truncation=True,
+            return_tensors="tf",
+        )
+
+        input_ids.append(bert_inp["input_ids"][0])
+        token_type_ids.append(bert_inp["token_type_ids"][0])
+        attention_mask.append(bert_inp["attention_mask"][0])
+        bert_inp_tot.append(
+            (
+                bert_inp["input_ids"][0],
+                bert_inp["token_type_ids"][0],
+                bert_inp["attention_mask"][0],
+            )
+        )
+
+    input_ids = np.asarray(input_ids)
+    token_type_ids = np.asarray(token_type_ids)
+    attention_mask = np.array(attention_mask)
+
+    return input_ids, token_type_ids, attention_mask, bert_inp_tot
+
+
+# Fonction de création des features
+def feature_BERT_fct(model, model_type, sentences, max_length, b_size, mode="HF"):
+    """
+    Description: compute BERT sentence embedding
+
+    Arguments:
+        - model (str): BERT model to use (e.g: TFAutoModel.from_pretrained())
+        - model_type: model to use (e.g. 'bert-base-uncased')
+        - sentences (list): sentences to embed
+        - max_length (int): maximum length of vectors
+        - b_size (int): batch size
+        - mode (str) : where to retrieve model
+            (can be 'HF' for Bert HuggingFace or 'TFhub' for Bert Tensorflow Hub)
+    Returns:
+        BERT embedding, ready to use for reduction dimension and clustering
+    """
+
+    batch_size = b_size
+    batch_size_pred = b_size
+    bert_tokenizer = AutoTokenizer.from_pretrained(model_type)
+    time1 = time.time()
+
+    for step in range(len(sentences) // batch_size):
+        idx = step * batch_size
+        input_ids, token_type_ids, attention_mask, bert_inp_tot = bert_inp_fct(
+            sentences[idx : idx + batch_size], bert_tokenizer, max_length
+        )
+
+        if mode == "HF":  # Bert HuggingFace
+            outputs = model.predict(
+                [input_ids, attention_mask, token_type_ids], batch_size=batch_size_pred
+            )
+            last_hidden_states = outputs.last_hidden_state
+
+        if mode == "TFhub":  # Bert Tensorflow Hub
+            text_preprocessed = {
+                "input_word_ids": input_ids,
+                "input_mask": attention_mask,
+                "input_type_ids": token_type_ids,
+            }
+            outputs = model(text_preprocessed)
+            last_hidden_states = outputs["sequence_output"]
+
+        if step == 0:
+            last_hidden_states_tot = last_hidden_states
+            last_hidden_states_tot_0 = last_hidden_states
+        else:
+            last_hidden_states_tot = np.concatenate(
+                (last_hidden_states_tot, last_hidden_states)
+            )
+
+    features_bert = np.array(last_hidden_states_tot).mean(axis=1)
+
+    time2 = np.round(time.time() - time1, 0)
+    print("temps traitement : ", time2)
+
+    return features_bert, last_hidden_states_tot
+
+
+def feature_USE_fct(sentences, use_module_url=use_module_url):
+    """
+    Description: compute Universal Sentence Encoder (USE) embedding
+
+    Arguments:
+        - sentences (list): sentences to embed
+        - use_module_url (str): model storage directory
+    Returns:
+        USE embedding, ready to use for reduction dimension and clustering
+    """
+
+    model = hub.load(use_module_url)
+    return model(sentences)
+
+
+class USE_wrapper(BaseEstimator, TransformerMixin):
+    """
+    Description: wrapper to use USE embedding in pipeline
+    """
+
+    def __init__(self):
+        return
+
+    def fit(self, X, y=None):
+        use_model = hub.load(use_module_url)
+        self.X_use = use_model(X.to_list())
+        self.X_use = MinMaxScaler().fit_transform(self.X_use)
+        return self
+
+    def transform(self, X, y=None):
+        use_model = hub.load(use_module_url)
+        self.X_use = use_model(X.to_list())
+        return MinMaxScaler().fit_transform(self.X_use)
+
+
 def explore_preprocess_vector_dim(
     df,
     categorical_labels,
@@ -720,6 +665,23 @@ def explore_preprocess_vector_dim(
                         seed=params["rand_state"],
                         workers=params["w2v_workers"],
                     )
+
+                elif method == "BERT":
+                    preprocess = "BERT"
+                    method_for_summary = feature_BERT_fct
+                    cv_transform, last_hidden_states_tot = feature_BERT_fct(
+                        model=params["bert_model"],
+                        model_type=params["bert_model_type"],
+                        sentences=sentences,
+                        max_length=params["bert_max_length"],
+                        b_size=params["bert_batch_size"],
+                        mode=params["bert_mode"],
+                    )
+
+                elif method == "USE":
+                    preprocess = "USE"
+                    method_for_summary = feature_USE_fct
+                    cv_transform = feature_USE_fct(sentences)
 
                 #  Scale data to get only positive values
                 cv_transform_scaled = MinMaxScaler().fit_transform(cv_transform)
@@ -943,153 +905,3 @@ def gridsearch_preprocess_vector_dim(
                 summary.to_pickle(str("p_" + summary_filename))
 
     return summary
-"""Utilitary functions used for text processing in ABES project"""
-
-# Import des librairies
-import re
-
-import nltk
-import spacy
-
-from nltk.corpus import stopwords
-from nltk.stem.snowball import FrenchStemmer
-from nltk.tokenize import word_tokenize
-from spacy.lang.fr.stop_words import STOP_WORDS as fr_stop
-
-# download nltk packages
-nltk.download("words")
-nltk.download("stopwords")
-nltk.download("omw-1.4")
-nlp = spacy.load("fr_core_news_md")
-
-DPI = 300
-RAND_STATE = 42
-
-
-#                           TEXT PREPROCESS                         #
-# --------------------------------------------------------------------
-def flatten(liste):
-    return [item for sublist in liste for item in sublist]
-
-
-# Remove stopwords
-def stop_word_filter_fct(list_words, add_words):
-    """
-    Description: remove classical french (and optionnally more)
-    stopword from a list of words
-
-    Arguments:
-        - list_words (list): list of words
-        - add_words (list) : list of additionnal words to remove
-
-    Returns :
-        - text without stopwords
-    """
-    stop_w = list(set(stopwords.words("french"))) + list(fr_stop) + add_words
-    filtered_w = [w for w in list_words if w not in stop_w]
-    return filtered_w
-
-
-# Lemmatizer (base d'un mot)
-def lemma_fct(list_words):
-    """
-    Description: lemmatize a list of words
-
-    Arguments:
-        - list_words (list): list of words
-        - lang (str): language used in the corpus (default: english)
-
-    Returns :
-        - Lemmatized list of words
-    """
-    # if lang == "english":
-    #     lemma = WordNetLemmatizer()
-    #     lem_w = [
-    #         lemma.lemmatize(
-    #             lemma.lemmatize(
-    #                 lemma.lemmatize(lemma.lemmatize(w, pos="a"), pos="v"), pos="n"
-    #             ),
-    #             pos="r",
-    #         )
-    #         for w in list_words
-    #     ]
-
-    lem_w = []
-    for token in nlp(" ".join(list_words)):
-        lem_w.append(token.lemma_)
-
-    # lem_w = " ".join(map(str, empty_list))
-
-    return lem_w
-
-
-# Stemming
-def stem_fct(list_words):
-    """
-    Description: Stem a list of words
-
-    Arguments:
-        - list_words (list): list of words
-
-    Returns :
-        - Stemmed list of words
-    """
-    stemmer = FrenchStemmer()
-    stem_w = [stemmer.stem(w) for w in list_words]
-
-    return stem_w
-
-
-# Preprocess text
-def preprocess_text(text, add_words=[], numeric=True, stopw=True, stem=False, lem=True):
-    """
-    Description: preprocess a text with different preprocessings.
-
-    Arguments:
-        - text (str): text, with punctuation
-        - add_words (str): words to remove, in addition to classical english stopwords
-        - numeric (bool): whether to remove numerical or not (default: True)
-        - stopw (bool): whether to remove classical english stopwords (default: True)
-        - stem (bool): whether to stem words or not (default: False)
-        - lem (bool): whether to lemmatize words or not (default: True)
-        - lang (str): language used in the corpus (default: eng for english). Can be 'eng' or 'fr'.
-
-    Returns :
-        - Preprocessed list of tokens
-    """
-
-    # Lowerize all words
-    text_lower = text.lower()
-
-    # remove particular characters and punctuation
-    text_lower = re.sub(r"_", " ", text_lower)  # r"_| x |\d+x"
-    text_no_punct = re.sub(r"[^\w\s]", " ", text_lower)
-
-    if numeric:
-        # remove all numeric characters
-        text_no_punct = re.sub(r"[^\D]", " ", text_no_punct)
-
-    # tokenize
-    word_tokens = word_tokenize(text_no_punct)
-
-    if stopw:
-        # remove stopwords
-        word_tokens = stop_word_filter_fct(word_tokens, add_words)
-
-    # Stemming or lemmatization
-    if stem:
-        # stemming
-        word_tokens = stem_fct(word_tokens)
-
-    if lem:
-        # lemmatization
-        word_tokens = lemma_fct(word_tokens)
-
-    # if stopw:
-    # remove stopwords
-    # word_tokens = stop_word_filter_fct(word_tokens, add_words)
-
-    # Finalize text
-    transf_desc_text = " ".join(word_tokens)
-
-    return transf_desc_text
