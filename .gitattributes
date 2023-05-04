@@ -1,18 +1,13 @@
-/preprocessing.ipynb filter=lfs diff=lfs merge=lfs -text
-/MLclassifiers.ipynb filter=lfs diff=lfs merge=lfs -text
 /data/export.dsv filter=lfs diff=lfs merge=lfs -text
 /data/export_sans_dewey.dsv filter=lfs diff=lfs merge=lfs -text
 /data/working_data.csv filter=lfs diff=lfs merge=lfs -text
 /data/working_data_rameau_preprocessed_datav1.csv filter=lfs diff=lfs merge=lfs -text
 /figures/pyldavis_description_lemma.html filter=lfs diff=lfs merge=lfs -text
 /figures/pyldavis_resumes_lemma.html filter=lfs diff=lfs merge=lfs -text
-/process_dataset_tokenize.ipynb filter=lfs diff=lfs merge=lfs -text
 /resources/USE/saved_model.pb filter=lfs diff=lfs merge=lfs -text
 /resources/USE/universal-sentence-encoder_4.tar.gz filter=lfs diff=lfs merge=lfs -text
 /resources/USE/variables/variables.data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
 /outputs/lr.pickle filter=lfs diff=lfs merge=lfs -text
-/MLclassifiers-b.ipynb filter=lfs diff=lfs merge=lfs -text
-/sample_large_dataset.ipynb filter=lfs diff=lfs merge=lfs -text
 /data/extraction/export.dsv filter=lfs diff=lfs merge=lfs -text
 /data/extraction/export_sans_dewey.dsv filter=lfs diff=lfs merge=lfs -text
 /data/reindexation/echantillon_150notices.csv filter=lfs diff=lfs merge=lfs -text
@@ -22,7 +17,5 @@
 /figs/export_sans_dewey_rameau_concepts_wordcloud.png filter=lfs diff=lfs merge=lfs -text
 /figs/export_sans_dewey_rameau_concepts_wordcloud_cleaned.png filter=lfs diff=lfs merge=lfs -text
 /figs/pyldavis_resumes_lemma.html filter=lfs diff=lfs merge=lfs -text
-/test_DL.ipynb filter=lfs diff=lfs merge=lfs -text
-/test_ML.ipynb filter=lfs diff=lfs merge=lfs -text
 /data/clustering_result_100000_notices.csv filter=lfs diff=lfs merge=lfs -text
 /data/clustering_result_10000_notices.csv filter=lfs diff=lfs merge=lfs -text
