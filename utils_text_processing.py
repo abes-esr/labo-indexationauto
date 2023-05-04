@@ -1,16 +1,15 @@
 """Utilitary functions used for text processing in ABES project"""
 
 # Import des librairies
-import os
 import re
 
 import nltk
 import spacy
 
 from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer, PorterStemmer
 from nltk.stem.snowball import FrenchStemmer
 from nltk.tokenize import word_tokenize
+from spacy.lang.fr.stop_words import STOP_WORDS as fr_stop
 
 # download nltk packages
 nltk.download("words")
@@ -21,10 +20,11 @@ nlp = spacy.load("fr_core_news_md")
 DPI = 300
 RAND_STATE = 42
 
+
 #                           TEXT PREPROCESS                         #
 # --------------------------------------------------------------------
-def flatten(l):
-    return [item for sublist in l for item in sublist]
+def flatten(liste):
+    return [item for sublist in liste for item in sublist]
 
 
 # Remove stopwords

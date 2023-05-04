@@ -1,13 +1,10 @@
-"""Utilitary functions for vizualisation used in Project 6"""
+"""Utilitary functions for vizualisation used in ABES project"""
 
 # Import des librairies
-import os
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from collections import Counter
-from PIL import Image
 from wordcloud import WordCloud
 
 DPI = 300
