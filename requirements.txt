@@ -211,7 +211,7 @@ pbr @ file:///tmp/build/80754af9/pbr_1619600803852/work
 pep8==1.7.1
 pexpect @ file:///tmp/build/80754af9/pexpect_1605563209008/work
 pickleshare @ file:///tmp/build/80754af9/pickleshare_1606932040724/work
-Pillow==9.1.0
+Pillow==9.3.0
 pingouin @ file:///home/conda/feedstock_root/build_artifacts/pingouin_1645383838152/work
 pkginfo==1.7.1
 plotly @ file:///home/conda/feedstock_root/build_artifacts/plotly_1644503417459/work
