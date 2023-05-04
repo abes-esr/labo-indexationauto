@@ -189,7 +189,7 @@ numba @ file:///C:/ci/numba_1635186062888/work
 numexpr @ file:///C:/ci/numexpr_1618856728739/work
 numpy @ file:///C:/ci/numpy_and_numpy_base_1626271900803/work
 numpydoc @ file:///tmp/build/80754af9/numpydoc_1605117425582/work
-oauthlib==3.2.0
+oauthlib==3.2.2
 olefile @ file:///Users/ktietz/demo/mc3/conda-bld/olefile_1629805411829/work
 opencv-python==4.5.5.64
 openpyxl @ file:///tmp/build/80754af9/openpyxl_1632777717936/work
