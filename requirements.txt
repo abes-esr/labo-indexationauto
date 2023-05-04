@@ -257,7 +257,7 @@ python-lsp-server==1.2.4
 python-slugify @ file:///tmp/build/80754af9/python-slugify_1620405669636/work
 pytz==2021.3
 PyWavelets @ file:///C:/ci/pywavelets_1607645631519/work
-pywin32==228
+pywin32==301
 pywin32-ctypes @ file:///C:/ci/pywin32-ctypes_1607553594546/work
 pywinpty @ file:///C:/ci/pywinpty_1607419945780/work
 PyYAML==6.0
