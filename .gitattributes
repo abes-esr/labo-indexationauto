@@ -24,6 +24,5 @@
 /figs/pyldavis_resumes_lemma.html filter=lfs diff=lfs merge=lfs -text
 /test_DL.ipynb filter=lfs diff=lfs merge=lfs -text
 /test_ML.ipynb filter=lfs diff=lfs merge=lfs -text
-/data/extraction/liste_concepts_rameau.csv filter=lfs diff=lfs merge=lfs -text
-/data/extraction/liste_concepts_rameau_sans_vedetteConstruites.csv filter=lfs diff=lfs merge=lfs -text
-/data/reindexation/avril2023/100_notices.xlsx filter=lfs diff=lfs merge=lfs -text
+/data/clustering_result_100000_notices.csv filter=lfs diff=lfs merge=lfs -text
+/data/clustering_result_10000_notices.csv filter=lfs diff=lfs merge=lfs -text
