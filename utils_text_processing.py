@@ -38,7 +38,7 @@ path = "."
 os.chdir(path)
 data_path = path + "/data"
 output_path = path + "/outputs"
-fig_path = path + "/figures"
+fig_path = path + "/figs"
 
 
 # Set Parameters
@@ -49,7 +49,7 @@ RANDOM_STATE = 42
 def get_dataset(filename):
     dataset = pd.read_csv(
         os.path.join(data_path, filename),
-        converters={"TITRE": eval, "RESUME": eval, "rameau_list_unstack": eval},
+        converters={"DESCR": eval,  "rameau_concepts": eval},
     )
     return dataset
 
@@ -63,7 +63,7 @@ def save_dataset_to_csv(df, filename):
 # Import processed dataset
 def get_dataset_init(filename):
     dataset_init = pd.read_csv(
-        os.path.join(data_path, filename), converters={"rameau_list_unstack": eval}
+        os.path.join(data_path, filename), converters={"rameau_concepts": eval}
     )
     return dataset_init
 
